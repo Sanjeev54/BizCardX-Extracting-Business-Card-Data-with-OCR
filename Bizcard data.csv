@@ -1,0 +1,6 @@
+"name","designation","company","email","website","primary_no","secondary_no","address","pincode","image"
+"Selva","DATA MANAGER","digitals","hello@xyz1.com","www.xyzi.com","+123-456-7890","+123-456-7891","123 ABC St , Chennai",600113,"binary data"
+"Amit kumar","CEO & FOUNDER","St ","hello@global.com","www.global.com","123-456-7569",NULL,"123 global Erode GLOBAL TamilNadu  INSURANCE St ",600115,"binary data"
+"KARTHICK","General Manager","AIRLINES","hello@borcelle.com","www.borcelle.com","+123-456-7890",NULL,"123 ABC St , Salem TamilNadu 6004513    BORCELLE AIRLINES",0,"binary data"
+"REVANTH","Marketing Executive","Restaurant","hello@christmas.com","www.christmas.com","+91-456-1234",NULL,"123 ABC St,, HYDRABAD, TamilNadu",600001,"binary data"
+"SANTHOSH","Technical Manager","Sun Electricals","hello@sun.com","www.suncom","+123-456-1234",NULL,"123 ABC St , Tirupur, TamilNadu",641603,"binary data"
