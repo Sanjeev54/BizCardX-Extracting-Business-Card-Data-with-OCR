@@ -1,275 +1,233 @@
 import os
+# Set the environment variable KMP_DUPLICATE_LIB_OK
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import streamlit as st
-import easyocr
-import cv2
-import numpy as np
-import pandas as pd
-import re
 from streamlit_option_menu import option_menu
-import psycopg2
+import easyocr
 from PIL import Image
+import pandas as pd
+import numpy as np
+import re
+import mysql.connector
 import io
-import sys
-import streamlit as st
-import sys
-import codecs
 
+# connect the database
+mydb = mysql.connector.connect(
+    user='root',
+    host='127.0.0.1',
+    port=3306,
+    password='****',
+    database = 'bizcardx')
 
+mycursor = mydb.cursor()
+mycursor.execute('CREATE DATABASE if not exists proj_bizcard')
+mycursor.execute('Use proj_bizcard')
 
-Mydb = psycopg2.connect(host="localhost", user="postgres", password="sanjeevgv", port=5432, database="bizcardx")
-guvi = Mydb.cursor()
-reader = easyocr.Reader(['en'], gpu=False)
-
-st.set_page_config(page_title="Bizcard", page_icon="", layout="wide", initial_sidebar_state="expanded")
-st.markdown(
-    """
-    <style>
-    .main {
-        padding: 0rem 0rem;
-    }
-    .sidebar .sidebar-content {
-        width: 300px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-st.title("Bizcard")
-
-def data_extrac(extract):
-    for i in range(len(extract)):
-        extract[i] = extract[i].rstrip(' ')
-        extract[i] = extract[i].rstrip(',')
-    result = ' '.join(extract)
-
-    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    website_pattern = r'[www|WWW|wwW]+[\.|\s]+[a-zA-Z0-9]+[\.|\][a-zA-Z]+'
-    phone_pattern = r'(?:\+)?\d{3}-\d{3}-\d{4}'
-    phone_pattern2 = r"(?:\+91[-\s])?(?:\d{4,5}[-\s])?\d{3}[-\s]?\d{4}"
-    name_pattern = r'[A-Za-z]+\b'
-    designation_pattern = r'\b[A-Za-z\s]+\b'
-    address_pattern = r'\d+\s[A-Za-z\s,]+'
-    pincode_pattern = r'\b\d{6}\b'
-
-    name = designation = company = email = website = primary = secondary = address = pincode = None
-
-    try:
-        email = re.findall(email_pattern, result)[0]
-        result = result.replace(email, '')
-        email = email.lower()
-    except IndexError:
-        email = None
-    try:
-        website = re.findall(website_pattern, result)[0]
-        result = result.replace(website, '')
-        website = re.sub('[WWW|www|wwW]+ ', 'www.', website)
-        website = website.lower()
-    except IndexError:
-        webstie = None
-    phone = re.findall(phone_pattern, result)
-    if len(phone) == 0:
-        phone = re.findall(phone_pattern2, result)
-    primary = None
-    secondary = None
-    if len(phone) > 1:
-        primary = phone[0]
-        secondary = phone[1]
-        for i in range(len(phone)):
-            result = result.replace(phone[i], '')
-    elif len(phone) == 1:
-        primary = phone[0]
-        result = result.replace(phone[0], '')
-
-    try:
-        pincode = int(re.findall(pincode_pattern, result)[0])
-        result = result.replace(str(pincode), '')
-    except:
-        pincode = 0
-    # name = re.findall(name_pattern, result)[0]
-    name = extract[0]
-    result = result.replace(name, '')
-    # designation = re.findall(designation_pattern, result)[0]
-    designation = extract[1]
-    result = result.replace(designation, '')
-    address = ''.join(re.findall(address_pattern, result))
-    result = result.replace(address, '')
-    company = extract[-1]
-    result = result.replace(company, '')
-
-    # print('Email:', email)
-    # print('Website:', website)
-    # print('Phone:', phone)
-    # print('Primary:', primary)
-    # print('Secondary:', secondary)
-    # print('Name:', name)
-    # print('Designation:', designation)
-    # print('Address:', address)
-    # print('Pincode:', pincode)
-    # print('company:', company)
-    # print('remaining:', result)
-
-    info = [name, designation, company, email, website, primary, secondary, address, pincode, result]
-    return (info)
-
-with st.sidebar:
-    selected = option_menu(
-        menu_title="Navigaton",  # required
-        options=["Home", "---", "Upload", "View/Modify", "---", "About"],  # required
-        icons=["house", "", "upload", "binoculars", "", "envelope"],  # optional
-        menu_icon="person-vcard",  # optional
-        default_index=0,  # optional
-        styles={"nav-link": {"--hover-color": "brown"}},
-        orientation="vertical",
-    )
-
-
-if selected == 'Home':
-    st.subheader("Welcome to the BizCard Project! ")
-    st.markdown("__<p>We are here to introduce you to an innovative solution that will transform the way you manage "
-                "your contact information. Our project is centered around simplifying the process of storing and "
-                "accessing business cards by creating a digital database.</p>__ "
-                "<br>"
-                "__<p>Gone are the days of manually entering contact details from visiting cards. "
-                "With our cutting-edge technology, all you need to do is scan the card using our integrated scanner, "
-                "and voila! A soft copy of the card is created and securely stored in our database.</p>__ "
-                "<br>"
-                "__<p>Imagine the convenience of having all your contacts readily available at your fingertips. "
-                "No more digging through stacks of business cards or struggling to remember where you put that "
-                "important contact. Our system ensures that your contacts are organized and easily searchable, "
-                "saving you time and effort.</p>__"
-                "<br>"
-                "__<p>Not only does our BizCard Project offer a streamlined approach to managing contacts, "
-                "but it eliminating the need for physical storage and "
-                "reducing the risk of losing important cards, our digital database ensures that your valuable "
-                "connections are preserved for the long term.</p>__ "
-                "<br>"
-                "__<p>We understand the importance of building and nurturing relationships in the business world. "
-                "That's why our project empowers you to strengthen your network efficiently. With quick access to "
-                "contact information, you can reach out to potential clients, collaborators, or partners effortlessly, "
-                "helping you seize every opportunity that comes your way.</p>__ "
-                "<br>"
-                "__<p>Join us on this journey of revolutionizing contact management. Say goodbye to cluttered desks "
-                "and hello to a digital future. Explore our BizCard Project and discover the ease and efficiency of "
-                "keeping your contacts in a secure, accessible, and organized format. </p>__"
-                "<br>"
-                "__<p>Start scanning, start connecting, and start building lasting relationships with the BizCard "
-                "Project.</p>__",unsafe_allow_html=True)
-elif selected == 'Upload':
-    uploaded_file = st.file_uploader("Choose a image file",type=["jpg", "jpeg", "png"])
-    if uploaded_file != None:
-        image = cv2.imdecode(np.fromstring(uploaded_file.read(), np.uint8), 1)
-        col1, col2, col3 = st.columns([2,1,2])
-        with col3:
-            st.image(image)
-        with col1:
-            result = reader.readtext(image, detail=0)
-            info = data_extrac(result)
-            #st.table(pd.Series(info, index=['Name', 'Designation', 'Company', 'Email ID', 'Website', 'Primary Contact', 'Secondary Contact', 'Address', 'Pincode', 'Other']))
-            ls_name = st.text_input('Name:',info[0])
-            ls_desig = st.text_input('Designation:', info[1])
-            ls_Com = st.text_input('Company:', info[2])
-            ls_mail = st.text_input('Email ID:', info[3])
-            ls_url = st.text_input('Website:', info[4])
-            ls_m1 = st.text_input('Primary Contact:', info[5])
-            ls_m2 = st.text_input('Secondary Contact:', info[6])
-            ls_add = st.text_input('Address:', info[7])
-            ls_pin = st.number_input('Pincode:', info[8])
-            ls_oth = st.text_input('Others(this will not stored):', info[9])
-            a = st.button("upload")
-            if a:
-                guvi.execute(
-                    "CREATE TABLE IF NOT EXISTS business_cards (name VARCHAR(255), designation VARCHAR(255), "
-                    "company VARCHAR(255), email VARCHAR(255), website VARCHAR(255), primary_no VARCHAR(255), "
-                    "secondary_no VARCHAR(255), address VARCHAR(255), pincode int, image bytea)")
-                query = "INSERT INTO business_cards (name, designation, company, email, website, primary_no, secondary_no, " \
-                      "address, pincode, image) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                val = (ls_name, ls_desig, ls_Com, ls_mail, ls_url, ls_m1, ls_m2, ls_add, ls_pin, psycopg2.Binary(image))
-                guvi.execute(query, val)
-                selva.commit()
-                st.success('Contact stored successfully in database', icon="✅")
-elif selected == 'View/Modify':
-    col1, col2, col3 = st.columns([2,2,4])
-    with col1:
-        guvi.execute('select name from business_cards')
-        y = guvi.fetchall()
-        contact = [x[0] for x in y]
-        contact.sort()
-        selected_contact = st.selectbox('Name',contact)
-    with col2:
-        mode_list = ['','View','Modify','Delete']
-        selected_mode = st.selectbox('Mode',mode_list,index = 0)
-
-    if selected_mode == 'View':
-        col5,col6 = st.columns(2)
-        with col5:
-            guvi.execute(f"select name, designation, company, email, website, primary_no, secondary_no, "
-                         f"address, pincode from business_cards where name = '{selected_contact}'")
-            y = guvi.fetchall()
-            st.table(pd.Series(y[0],index=['Name', 'Designation', 'Company', 'Email ID', 'Website', 'Primary Contact', 'Secondary Contact', 'Address', 'Pincode'],name='Card Info'))
-
-    elif selected_mode == 'Modify':
-        guvi.execute(f"select name, designation, company, email, website, primary_no, secondary_no, "
-                     f"address, pincode from business_cards where name = '{selected_contact}'")
-        info = guvi.fetchone()
-        col5, col6 = st.columns(2)
-        with col5:
-            ls_name = st.text_input('Name:', info[0])
-            ls_desig = st.text_input('Designation:', info[1])
-            ls_Com = st.text_input('Company:', info[2])
-            ls_mail = st.text_input('Email ID:', info[3])
-            ls_url = st.text_input('Website:', info[4])
-            ls_m1 = st.text_input('Primary Contact:', info[5])
-            ls_m2 = st.text_input('Secondary Contact:', info[6])
-            ls_add = st.text_input('Address:', info[7])
-            ls_pin = st.number_input('Pincode:', info[8])
-        a = st.button("Update")
-        if a:
-            query = f"update business_cards set name = %s, designation = %s, company = %s, email = %s, website = %s, " \
-                    f"primary_no = %s, secondary_no = %s, address = %s, pincode = %s where name = '{selected_contact}'"
-            val = (ls_name, ls_desig, ls_Com, ls_mail, ls_url, ls_m1, ls_m2, ls_add, ls_pin)
-            guvi.execute(query, val)
-            selva.commit()
-            st.success('Contact updated successfully in database', icon="✅")
-
-    elif selected_mode == 'Delete':
-        st.markdown(
-            f'__<p style="text-align:left; font-size: 20px; color: #FAA026">You are trying to remove {selected_contact} '
-            f'contact from database.</P>__',
+# SETTING PAGE CONFIGURATIONS
+icon = Image.open("download.jpg")
+st.set_page_config(page_title="BizCardX: Extracting Business Card Data with OCR | By Sanjeev Kumar ",
+                   page_icon=icon,
+                   layout="wide",
+                   initial_sidebar_state="expanded",
+                   menu_items={'About': """# This OCR app is created by *Sanjeev Kumar *!"""})
+st.markdown("<h1 style='text-align: center; color: Green;'>BizCardX: Extracting Business Card Data with OCR</h1>",
             unsafe_allow_html=True)
-        warning_content = """
-            **Warning:**
-            This action will permanently delete the contact from the database and cannot be recovered. 
-            Please review and confirm..
-        """
-        st.warning(warning_content)
-        confirm = st.button('Confirm')
-        if confirm:
-            query = f"DELETE FROM business_cards where name = '{selected_contact}'"
-            guvi.execute(query)
-            selva.commit()
-            st.success('Contact removed successfully from database', icon="✅")
-elif selected == 'About':
-    st.markdown('__<p style="text-align:left; font-size: 25px; color: #FAA026">Summary of BizCard Project</P>__',
-                unsafe_allow_html=True)
-    st.write("This business card project focused on enabling users to scan any visiting card and make a soft copy in "
-             "the database. This innovative business card project has revolutionized the way we store contact "
-             "information. With its built-in scanner, users can quickly and easily scan any visiting card into a "
-             "soft copy, which can be stored in a secure database for quick access. This is an efficient and effective "
-             "way to keep track of contacts and build relationships.")
-    st.markdown('__<p style="text-align:left; font-size: 20px; color: #FAA026">Applications and Packages Used:</P>__',
-                    unsafe_allow_html=True)
-    st.write("  * Python")
-    st.write("  * PostgresSql")
-    st.write("  * Streamlit")
-    st.write("  * Github")
-    st.write("  * Pandas, EasyOCR, Re, CV2, Psycopg2")
-    st.markdown('__<p style="text-align:left; font-size: 20px; color: #FAA026">For feedback/suggestion, connect with me on</P>__',
-                unsafe_allow_html=True)
-    st.subheader("LinkedIn")
-    st.write("linkedin.com/in/sanjeev-kumar-m-360601149/")
-    st.subheader("Email ID")
-    st.write("gvofficial54@gmail.com")
-    st.subheader("Github")
-    st.write("https://github.com/Sanjeev54")
-    st.balloons()
+
+#st.snow
+
+# SETTING-UP BACKGROUND IMAGE
+def setting_bg():
+    st.markdown(f""" <style>.stApp {{
+                        background:url("https://images.unsplash.com/photo-1542281286-9e0a16bb7366");
+                        background-size: cover}}
+                     </style>""", unsafe_allow_html=True)
+
+# CREATING OPTION MENU
+selected = option_menu(None, ["Home", "Upload & Modify", "Delete"],
+                       icons=["house", "cloud-upload", "pencil-square"],
+                       default_index=0,
+                       orientation="horizontal",
+                       styles={"nav-link": {"font-size": "35px", "text-align": "centre", "margin": "-3px",
+                                            "--hover-color": "#545454"},
+                               "icon": {"font-size": "35px"},
+                               "container": {"max-width": "6000px"},
+                               "nav-link-selected": {"background-color": "#ff5757"}})
+
+# HOME MENU
+if selected == "Home":
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image(Image.open("bizbg.jpg"), width=500)
+        st.markdown("## :green[**Technologies Used :**] Python,easy OCR, Streamlit, SQL, Pandas")
+    with col2:
+        st.write(
+            "## :green[**About :**] Bizcard is a Python application designed to extract information from business cards.")
+        st.write(
+            '## The main purpose of Bizcard is to automate the process of extracting key details from business card images, such as the name, designation, company, contact information, and other relevant data. By leveraging the power of OCR (Optical Character Recognition) provided by EasyOCR, Bizcard is able to extract text from the images.')
+
+# DELETE MENU
+if selected == "Delete":
+    col1, col2 = st.columns([4, 4])
+    with col1:
+        mycursor.execute("SELECT NAME FROM BUSINESS_CARD")
+        H = mycursor.fetchall()
+        names = ["Select"]
+        for i in H:
+            names.append(i[0])
+        name_selected = st.selectbox("Select the name to delete", options=names)
+        # st.write(name_selected)
+    with col2:
+        mycursor.execute(f"SELECT DESIGNATION FROM BUSINESS_CARD WHERE NAME = '{name_selected}'")
+        A = mycursor.fetchall()
+        designation = ["Select"]
+        for j in A:
+            designation.append(j[0])
+        designation_selected = st.selectbox("Select the designation of the chosen name", options=designation)
+
+    st.markdown(" ")
+
+    col_a, col_b, col_c = st.columns([5, 3, 3])
+    with col_b:
+        remove = st.button("Clik here to delete")
+    if name_selected and designation_selected and remove:
+        mycursor.execute(
+            f"DELETE FROM BUSINESS_CARD WHERE NAME = '{name_selected}' AND DESIGNATION = '{designation_selected}'")
+        mydb.commit()
+        if remove:
+            st.warning('DELETED', icon="⚠️")
+
+# extract the data
+def extracted_text(picture):
+    extrt_dic = {'Name': [], 'Designation': [], 'Company name': [], 'Contact': [], 'Email': [], 'Website': [],
+               'Address': [], 'Pincode': []}
+
+    extrt_dic['Name'].append(result[0])
+    extrt_dic['Designation'].append(result[1])
+
+    for m in range(2, len(result)):
+        if result[m].startswith('+') or (result[m].replace('-', '').isdigit() and '-' in result[m]):
+            extrt_dic['Contact'].append(result[m])
+
+        elif '@' in result[m] and '.com' in result[m]:
+            small = result[m].lower()
+            extrt_dic['Email'].append(small)
+
+        elif 'www' in result[m] or 'WWW' in result[m] or 'wwW' in result[m]:
+            small = result[m].lower()
+            extrt_dic['Website'].append(small)
+
+        elif 'TamilNadu' in result[m] or 'Tamil Nadu' in result[m] or result[m].isdigit():
+            extrt_dic['Pincode'].append(result[m])
+
+        elif re.match(r'^[A-Za-z]', result[m]):
+            extrt_dic['Company name'].append(result[m])
+
+        else:
+            removed_colon = re.sub(r'[,;]', '', result[m])
+            extrt_dic['Address'].append(removed_colon)
+
+    for key, value in extrt_dic.items():
+        if len(value) > 0:
+            concatenated_string = ' '.join(value)
+            extrt_dic[key] = [concatenated_string]
+        else:
+            value = 'NA'
+            extrt_dic[key] = [value]
+
+    return extrt_dic
+
+
+if selected == "Upload & Modify":
+    image = st.file_uploader(label="Upload the image", type=['png', 'jpg', 'jpeg'], label_visibility="hidden")
+
+
+    @st.cache_data
+    def load_image():
+        reader = easyocr.Reader(['en'], model_storage_directory=".")
+        return reader
+
+
+    reader_1 = load_image()
+    if image is not None:
+        input_image = Image.open(image)
+        # Setting Image size
+        st.image(input_image, width=350, caption='Uploaded Image')
+        st.markdown(
+            f'<style>.css-1aumxhk img {{ max-width: 300px; }}</style>',
+            unsafe_allow_html=True
+        )
+
+        result = reader_1.readtext(np.array(input_image), detail=0)
+
+        # creating dataframe
+        ext_text = extracted_text(result)
+        df = pd.DataFrame(ext_text)
+        st.dataframe(df)
+        # Converting image into bytes
+        image_bytes = io.BytesIO()
+        input_image.save(image_bytes, format='PNG')
+        image_data = image_bytes.getvalue()
+        # Creating dictionary
+        data = {"Image": [image_data]}
+        df_1 = pd.DataFrame(data)
+        concat_df = pd.concat([df, df_1], axis=1)
+
+        # Database
+        col1, col2, col3 = st.columns([1, 6, 1])
+        with col2:
+            selected = option_menu(
+                menu_title=None,
+                options=["Preview"],
+                icons=['file-earmark'],
+                default_index=0,
+                orientation="horizontal"
+            )
+
+            ext_text = extracted_text(result)
+            df = pd.DataFrame(ext_text)
+        if selected == "Preview":
+            col_1, col_2 = st.columns([4, 4])
+            with col_1:
+                modified_n = st.text_input('Name', ext_text["Name"][0])
+                modified_d = st.text_input('Designation', ext_text["Designation"][0])
+                modified_c = st.text_input('Company name', ext_text["Company name"][0])
+                modified_con = st.text_input('Mobile', ext_text["Contact"][0])
+                concat_df["Name"], concat_df["Designation"], concat_df["Company name"], concat_df[
+                    "Contact"] = modified_n, modified_d, modified_c, modified_con
+            with col_2:
+                modified_m = st.text_input('Email', ext_text["Email"][0])
+                modified_w = st.text_input('Website', ext_text["Website"][0])
+                modified_a = st.text_input('Address', ext_text["Address"][0][1])
+                modified_p = st.text_input('Pincode', ext_text["Pincode"][0])
+                concat_df["Email"], concat_df["Website"], concat_df["Address"], concat_df[
+                    "Pincode"] = modified_m, modified_w, modified_a, modified_p
+
+            col3, col4 = st.columns([4, 4])
+            with col3:
+                Preview = st.button("Preview modified text")
+            with col4:
+                Upload = st.button("Upload")
+            if Preview:
+                filtered_df = concat_df[
+                    ['Name', 'Designation', 'Company name', 'Contact', 'Email', 'Website', 'Address', 'Pincode']]
+                st.dataframe(filtered_df)
+            else:
+                pass
+
+            if Upload:
+                with st.spinner("In progress"):
+                    mycursor.execute(
+                        "CREATE TABLE IF NOT EXISTS BUSINESS_CARD(NAME VARCHAR(50), DESIGNATION VARCHAR(100), "
+                        "COMPANY_NAME VARCHAR(100), CONTACT VARCHAR(35), EMAIL VARCHAR(100), WEBSITE VARCHAR("
+                        "100), ADDRESS TEXT, PINCODE VARCHAR(100))")
+                    mydb.commit()
+                    A = "INSERT INTO BUSINESS_CARD(NAME, DESIGNATION, COMPANY_NAME, CONTACT, EMAIL, WEBSITE, ADDRESS, " \
+                        "PINCODE) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                    for index, i in concat_df.iterrows():
+                        result_table = (i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7])
+                        mycursor.execute(A, result_table)
+                        mydb.commit()
+                        st.success('SUCCESSFULLY UPLOADED TO DATABASE', icon="✅")
+    else:
+        st.write("Upload an image")
